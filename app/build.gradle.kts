@@ -1,6 +1,6 @@
 plugins {
     id("flow.android.application")
-    alias(libs.plugins.ksp)
+    id("flow.android.application.compose")
 }
 
 android {
@@ -24,19 +24,24 @@ android {
 }
 
 dependencies {
-    implementation(project(":domain"))
-    implementation(project(":data"))
-    implementation(project(":core-common"))
+    implementation(projects.feature.bookshelf)
+    implementation(projects.feature.reader)
+    implementation(projects.feature.source)
+    implementation(projects.feature.settings)
 
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.androidx.activity.compose)
+    implementation(projects.core.data)
+    implementation(projects.core.designsystem)
+    implementation(projects.core.ui)
+    implementation(projects.core.model)
+    implementation(projects.core.common)
+
     implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.activity.compose)
     implementation(libs.bundles.compose)
     implementation(libs.bundles.lifecycle)
     implementation(libs.bundles.voyager)
     implementation(libs.androidx.documentfile)
-    implementation(libs.material)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

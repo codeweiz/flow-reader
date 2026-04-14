@@ -1,8 +1,8 @@
 package io.flowreader.app
 
 import android.app.Application
-import io.flowreader.data.RepositoryProvider
-import io.flowreader.domain.repository.BookRepository
+import io.flowreader.core.data.RepositoryProvider
+import io.flowreader.core.data.repository.BookRepository
 
 class FlowReaderApp : Application() {
 

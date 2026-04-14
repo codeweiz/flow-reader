@@ -16,69 +16,66 @@
 
 ## 2. 架构设计
 
-### 2.1 模块结构（Clean Architecture + 多模块）
+### 2.1 模块结构（Now in Android 风格 — Feature-first）
 
-采用统一的 `kebab-case` 模块名，反向域名包名规范，避免嵌套过深：
+参考 Google [Now in Android](https://github.com/android/nowinandroid) 官方架构，采用 **Feature-first** 模块化，而非 Layer-first。模块名统一使用 `snake_case`，反向域名包名规范：
 
 ```
 flow-reader/
-├── app/                        # Application 入口、Activity、Application 级初始化
+├── app/                        # 壳模块：Application、MainActivity、导航装配、DI 入口
 │   └── src/main/java/io/flowreader/app/
+├── build-logic/                # 共享构建逻辑（Convention Plugins）
+│   └── convention/src/main/kotlin/...
 ├── core/
-│   ├── common/                 # 通用工具类、扩展函数
-│   │   └── src/main/java/io/flowreader/core/common/
-│   └── archive/                # 压缩文件处理（7z/zip/rar/cbz）
-│       └── src/main/java/io/flowreader/core/archive/
-├── domain/                     # 业务逻辑层：UseCase、Repository 接口、领域模型
-│   └── src/main/java/io/flowreader/domain/
-├── data/                       # 数据层：Repository 实现、Room、偏好设置、网络客户端
-│   └── src/main/java/io/flowreader/data/
-├── source/
-│   ├── api/                    # 书源/图源接口定义（扩展系统基础协议）
-│   │   └── src/main/java/io/flowreader/source/api/
-│   ├── local/                  # 本地文件解析（TXT/EPUB/PDF/MOBI/压缩包）
-│   │   └── src/main/java/io/flowreader/source/local/
-│   └── engine/                 # 规则解析引擎（JSoup/XPath/JSONPath/Rhino JS）
-│       └── src/main/java/io/flowreader/source/engine/
-├── ui/
-│   ├── core/                   # 通用 Compose 组件、主题、Material You
-│   │   └── src/main/java/io/flowreader/ui/core/
-│   ├── reader/                 # 阅读器相关 UI（文字/漫画/音频）
-│   │   └── src/main/java/io/flowreader/ui/reader/
-│   └── widget/                 # 桌面小部件（可选）
-│       └── src/main/java/io/flowreader/ui/widget/
+│   ├── common/                 # 通用工具类、扩展函数、ResultWrapper
+│   ├── model/                  # 跨模块共享的纯数据类（Book、Chapter、Source 等）
+│   ├── data/                   # Repository 实现、数据提供者、数据转换（Mapper）
+│   ├── database/               # Room 实体、Dao、Database、Schema
+│   ├── designsystem/           # Compose 主题、Material You、通用组件
+│   ├── ui/                     # 跨 feature 共享的 Compose UI 组件
+│   ├── source_engine/          # 规则解析引擎（JSoup/XPath/JSONPath/Rhino JS）
+│   └── source_local/           # 本地文件解析（TXT/EPUB/PDF/压缩包）
+├── feature/
+│   ├── bookshelf/              # 书架功能：UI、ViewModel、该 feature 私有的 UseCase
+│   ├── reader/                 # 阅读器功能：文字/漫画/音频 阅读 UI
+│   ├── source/                 # 书源管理：导入、编辑、调试、APK 扩展安装
+│   └── settings/               # 设置功能
 ├── sync/                       # WebDAV/云端同步、Web 服务（可选模块）
 │   └── src/main/java/io/flowreader/sync/
-├── i18n/                       # 国际化资源（Moko Resources）
-│   └── src/main/.../io/flowreader/i18n/
-└── gradle/build-logic/         # 共享构建逻辑（Convention Plugins）
+└── gradle/
+    └── libs.versions.toml      # Version Catalog
 ```
 
 ### 2.2 架构分层
 
 ```
 ┌─────────────────────────────────────────────┐
-│  UI 层 (app / ui-*)                         │
-│  Jetpack Compose + Voyager/Navigation       │
+│  App 层 (app)                               │
+│  导航装配、Application、DI 入口              │
 ├─────────────────────────────────────────────┤
-│  表现层 (ui-core / ui-reader / ui-widget)   │
-│  通用 Compose 组件、主题、阅读器 UI、小部件  │
+│  Feature 层 (feature:*)                     │
+│  书架 / 阅读器 / 书源管理 / 设置             │
+│  每个 feature 自包含 UI + ViewModel + UseCase│
 ├─────────────────────────────────────────────┤
-│  领域层 (domain)                            │
-│  UseCase、Repository 接口、领域模型          │
+│  Core 表现层 (core:designsystem / core:ui)  │
+│  通用 Compose 组件、主题、阅读器 UI          │
 ├─────────────────────────────────────────────┤
-│  数据层 (data)                              │
+│  Core 数据层 (core:data / core:database)    │
 │  Repository 实现、Room、Datastore、网络请求  │
 ├─────────────────────────────────────────────┤
-│  核心层 (core / source-* / sync)            │
-│  工具类、图源接口、本地解析、规则引擎、同步  │
+│  Core 模型层 (core:model)                   │
+│  跨模块共享的纯数据类（零 Android 依赖）     │
+├─────────────────────────────────────────────┤
+│  Core 引擎层 (core:source_* / core:common)  │
+│  工具类、规则引擎、本地解析                  │
 └─────────────────────────────────────────────┘
 ```
 
 **原则**：
 - `app` 模块仅负责导航、生命周期与依赖注入装配，不包含业务逻辑。
-- 领域层不依赖 Android Framework，便于单元测试。
-- 数据层通过 `source:api` 的接口对接各类图源实现。
+- **不再保留顶层的 `domain` 模块**：Repository 接口归入 `core:data`，UseCase 放入各自 feature 内部。
+- `core:model` 为纯 Kotlin 模块，不依赖 Android Framework，便于单元测试。
+- `feature:*` 模块之间**禁止互相依赖**，跨 feature 导航通过 `app` 层协调或 Deep Link 完成。
 
 ---
 
@@ -168,12 +165,16 @@ flow-reader/
 ### 4.3 依赖方向
 
 ```
-app -> ui-* -> domain <- data <- source-* <- core
+app -> feature-* -> core:data, core:model, core:designsystem
+                    ↑
+core:data -> core:model, core:database, core:source_*, core:common
+core:ui -> core:model, core:designsystem, core:common
 ```
 
 - **严禁循环依赖**。
-- `domain` 不依赖任何 Android 库或第三方框架（纯 Kotlin）。
-- `data` 可依赖 `source:api`、`core`、Room、OkHttp 等。
+- `feature:*` 之间**禁止直接依赖**。
+- `core:model` 不依赖任何 Android 库或第三方框架（纯 Kotlin）。
+- `core:data` 可依赖 `core:database`、`core:source_*`、Room、OkHttp 等。
 
 ### 4.4 状态管理
 
@@ -266,7 +267,7 @@ app -> ui-* -> domain <- data <- source-* <- core
 
 - **首选 Room 2.7.x**：团队熟悉度高、生态成熟、与 Paging/LiveData/Flow 集成度好。
 - **必须使用 KSP**（`com.google.devtools.ksp` 插件）替代 KAPT，显著提升编译速度。
-- **Schema 管理**：开启 `room.schemaLocation`，每次迁移自动导出 schema 到 `data/schemas/` 或 `app/schemas/`。
+- **Schema 管理**：开启 `room.schemaLocation`，每次迁移自动导出 schema 到 `core/database/schemas/`。
 - **增量编译**：配置 `room.incremental=true` 和 `room.expandProjection=true`。
 - **实体命名**：数据层实体后缀 `Entity`（如 `BookEntity`），避免与领域层 `Book` 混淆。
 
@@ -342,9 +343,9 @@ module/src/androidTest/       # 仪器测试（Compose Test / Espresso）
 
 ### 9.2 重点测试对象
 
-- `source:engine` 模块：规则解析器单元测试（JSoup/XPath/JSONPath 输入输出断言）。
-- `domain` 模块：UseCase 逻辑测试（Mock Repository）。
-- `source:local` 模块：本地文件解析测试（多种格式样本文件）。
+- `core:source_engine` 模块：规则解析器单元测试（JSoup/XPath/JSONPath 输入输出断言）。
+- `feature:*/src/test`：各 feature 的 UseCase / ViewModel 逻辑测试（Mock Repository）。
+- `core:source_local` 模块：本地文件解析测试（多种格式样本文件）。
 
 ---
 
@@ -353,9 +354,9 @@ module/src/androidTest/       # 仪器测试（Compose Test / Espresso）
 Flow Reader 的技术选型以 **Mihon 的现代 Android 架构** 为骨架，以 **Legado 的强大书源引擎与本地阅读能力** 为血肉：
 
 1. **现代 UI**：Jetpack Compose + Material You + Voyager 导航。
-2. **清晰分层**：Clean Architecture + 多模块（`ui-*` / `source-*` / `core-*`），包名统一、依赖方向明确。
+2. **Feature-first 模块化**：参考 Now in Android 官方架构，按功能域拆分模块，编译隔离、边界清晰。
 3. **双轨扩展**：APK 扩展（漫画图源）+ 规则引擎（小说书源）。
-4. **统一阅读**：文字、漫画、音频三种阅读模式共享一套书架与 `data` 层。
+4. **统一阅读**：文字、漫画、音频三种阅读模式共享一套书架与 `core:data` 层。
 5. **成熟数据层**：Room + KSP + Schema 管理，稳定可靠。
 
 ---

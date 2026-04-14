@@ -1,5 +1,5 @@
 pluginManagement {
-    includeBuild("gradle/build-logic")
+    includeBuild("build-logic")
     repositories {
         maven { setUrl("https://maven.aliyun.com/repository/gradle-plugin") }
         maven { setUrl("https://maven.aliyun.com/repository/google") }
@@ -21,7 +21,19 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "flow-reader"
+
+enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
+
 include(":app")
-include(":domain")
-include(":data")
-include(":core-common")
+include(":core:common")
+include(":core:model")
+include(":core:data")
+include(":core:database")
+include(":core:designsystem")
+include(":core:ui")
+include(":core:source_engine")
+include(":core:source_local")
+include(":feature:bookshelf")
+include(":feature:reader")
+include(":feature:source")
+include(":feature:settings")
